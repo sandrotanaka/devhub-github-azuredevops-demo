@@ -1,0 +1,43 @@
+integrations:
+  azure:
+    - host: dev.azure.com
+      credentials:
+        - organizations:
+            - ${AZURE_DEVOPS_ORG}
+          personalAccessToken: ${AZURE_DEVOPS_PAT}
+
+# Necessário para o plugin Azure DevOps backend (aba CI)
+azureDevOps:
+  host: dev.azure.com
+  organization: ${AZURE_DEVOPS_ORG}
+  token: ${AZURE_DEVOPS_PAT}
+
+proxy:
+  endpoints:
+    /azure-devops:
+      target: https://dev.azure.com
+      changeOrigin: true
+      allowedMethods: [GET, POST, DELETE, PATCH]
+      credentials: dangerously-allow-unauthenticated
+      headers:
+        # IMPORTANTE: variáveis de env NÃO são expandidas aqui.
+        # Execute: echo -n ":<SEU_PAT>" | base64
+        # e substitua o valor abaixo pelo resultado.
+        Authorization: "Basic OkFTNk1tZ0FVc29BYkVGV0JHeUkzREZNNHhaR203dngxUFRjUHJYdGV5R2Jjek1aOVFiRDBKUVFKOTlDRUFDQUFBQUFBQUFBQUFBQVNBWkRPM1AwYw=="
+
+catalog:
+  locations:
+    - type: url
+      target: https://raw.githubusercontent.com/${GITHUB_USER}/devhub-github-azuredevops-demo/main/templates/all-templates.yaml
+  providers:
+    azureDevOps:
+      default:
+        organization: ${AZURE_DEVOPS_ORG}
+        project: ${AZURE_DEVOPS_PROJECT}
+        repository: '*'
+        path: /catalog-info.yaml
+        schedule:
+          frequency:
+            minutes: 30
+          timeout:
+            minutes: 3

@@ -1,0 +1,8 @@
+apiVersion: backstage.io/v1alpha1
+kind: Location
+metadata:
+  name: devhub-github-azuredevops-demo-templates
+  description: Templates da demo RHDH com Azure DevOps
+spec:
+  targets:
+    - ./quarkus-github-ado/template.yaml

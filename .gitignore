@@ -1,0 +1,12 @@
+# Variáveis de ambiente — NUNCA commitar
+.env
+
+# Sistemas operacionais
+.DS_Store
+Thumbs.db
+
+# Editores
+.vscode/
+.idea/
+*.swp
+*.swo

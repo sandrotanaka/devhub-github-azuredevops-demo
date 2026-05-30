@@ -1,0 +1,17 @@
+# ============================================================
+# Dynamic Plugins — Red Hat Developer Hub 1.9
+# Adicionar ao ConfigMap: tssc-developer-hub-dynamic-plugins
+# chave: dynamic-plugins.yaml
+#
+# IMPORTANTE — RHDH 1.9:
+# Plugins Azure DevOps são community plugins migrados para OCI.
+# NÃO use paths ./dynamic-plugins/dist/ para esses plugins —
+# eles não existem no filesystem do container nesta versão.
+# Referência: https://docs.redhat.com/en/documentation/red_hat_developer_hub/1.9/html-single/dynamic_plugins_reference/index
+# ============================================================
+
+# Adicionar ao bloco plugins: existente no ConfigMap:
+# - disabled: false
+#   package: oci://ghcr.io/redhat-developer/rhdh-plugin-export-overlays/backstage-community-plugin-azure-devops:bs_1.45.3__0.23.0
+# - disabled: false
+#   package: oci://ghcr.io/redhat-developer/rhdh-plugin-export-overlays/backstage-community-plugin-azure-devops-backend:bs_1.45.3__0.23.0
