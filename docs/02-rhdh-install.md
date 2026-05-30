@@ -18,13 +18,13 @@ oc get secret -n $NAMESPACE | grep -i developer-hub
 
 | Recurso | Tipo | Nome |
 |---|---|---|
-| Namespace | — | `tssc-dh` |
+| Namespace | — | `${OCP_NAMESPACE}` |
 | Deployment | Deployment | `backstage-developer-hub` |
-| app-config | ConfigMap | `tssc-developer-hub-app-config` |
-| dynamic-plugins | ConfigMap | `tssc-developer-hub-dynamic-plugins` |
-| Variáveis de ambiente | Secret | `tssc-developer-hub-env` |
+| app-config | ConfigMap | `${RHDH_CONFIGMAP_APPCONFIG}` |
+| dynamic-plugins | ConfigMap | `${RHDH_CONFIGMAP_PLUGINS}` |
+| Variáveis de ambiente | Secret | `${RHDH_SECRET}` |
 
-> O operador também cria `backstage-appconfig-developer-hub`, `backstage-dynamic-plugins-developer-hub` e `backstage-files-developer-hub`. **Não edite esses recursos** — são gerenciados internamente pelo operador. Use apenas os prefixados com o nome da sua instância (`tssc-developer-hub-*`).
+> O operador também cria `backstage-appconfig-developer-hub`, `backstage-dynamic-plugins-developer-hub` e `backstage-files-developer-hub`. **Não edite esses recursos** — são gerenciados internamente pelo operador. Use apenas os prefixados com o nome da sua instância (`${RHDH_SECRET/env/*}`).
 
 ---
 
@@ -37,7 +37,7 @@ B64_PROJECT=$(echo -n "${AZURE_DEVOPS_PROJECT}" | base64)
 B64_PAT=$(echo -n "${AZURE_DEVOPS_PAT}" | base64)
 
 # Aplicar patch no secret
-oc patch secret tssc-developer-hub-env -n tssc-dh \
+oc patch secret ${RHDH_SECRET} -n ${OCP_NAMESPACE} \
   --type='json' \
   -p="[
     {\"op\":\"add\",\"path\":\"/data/AZURE_DEVOPS_ORG\",     \"value\":\"${B64_ORG}\"},
@@ -56,7 +56,7 @@ oc patch secret tssc-developer-hub-env -n tssc-dh \
 
 ## Passo 2 — app-config
 
-Adicionar a chave `app-config.azure.yaml` ao ConfigMap `tssc-developer-hub-app-config`:
+Adicionar a chave `app-config.azure.yaml` ao ConfigMap `${RHDH_CONFIGMAP_APPCONFIG}`:
 
 ```bash
 # Calcular PAT Base64 para o proxy header
@@ -66,7 +66,7 @@ PAT_BASE64=$(echo -n ":${AZURE_DEVOPS_PAT}" | base64 | tr -d '\n')
 CONFIG_CONTENT=$(sed "s|<BASE64_HARDCODED_DO_PAT>|${PAT_BASE64}|g" config/app-config.azure.yaml)
 
 # Aplicar patch
-oc patch configmap tssc-developer-hub-app-config -n tssc-dh \
+oc patch configmap ${RHDH_CONFIGMAP_APPCONFIG} -n ${OCP_NAMESPACE} \
   --type=merge \
   -p "{\"data\":{\"app-config.azure.yaml\":$(echo "${CONFIG_CONTENT}" | python3 -c 'import sys,json; print(json.dumps(sys.stdin.read()))')}}"
 ```
@@ -95,14 +95,14 @@ Adicionar os dois plugins Azure ao ConfigMap existente (preservando todos os out
 
 ```bash
 # Verificar plugins Azure já carregados
-oc get configmap tssc-developer-hub-dynamic-plugins -n tssc-dh \
+oc get configmap ${RHDH_CONFIGMAP_PLUGINS} -n ${OCP_NAMESPACE} \
   -o jsonpath='{.data.dynamic-plugins\.yaml}' | grep -i azure
 ```
 
 Se não aparecerem, adicionar ao final do bloco `plugins:` via `oc patch`:
 
 ```bash
-oc patch configmap tssc-developer-hub-dynamic-plugins -n tssc-dh \
+oc patch configmap ${RHDH_CONFIGMAP_PLUGINS} -n ${OCP_NAMESPACE} \
   --type=merge \
   -p '{"data":{"dynamic-plugins.yaml":"<CONTEUDO_COMPLETO_COM_PLUGINS_AZURE>"}}'
 ```
@@ -121,7 +121,7 @@ Plugins Azure DevOps corretos para RHDH 1.9:
 Verificar instalação no log do init container:
 
 ```bash
-oc logs -n tssc-dh deployment/backstage-developer-hub -c install-dynamic-plugins | grep -i azure
+oc logs -n ${OCP_NAMESPACE} deployment/backstage-developer-hub -c install-dynamic-plugins | grep -i azure
 ```
 
 Resultado esperado:
@@ -135,14 +135,14 @@ Resultado esperado:
 ## Passo 4 — Reiniciar o RHDH
 
 ```bash
-oc rollout restart deployment/backstage-developer-hub -n tssc-dh
-oc rollout status deployment/backstage-developer-hub -n tssc-dh
+oc rollout restart deployment/backstage-developer-hub -n ${OCP_NAMESPACE}
+oc rollout status deployment/backstage-developer-hub -n ${OCP_NAMESPACE}
 ```
 
 Verificar plugins carregados no log do backend:
 
 ```bash
-oc logs -n tssc-dh deployment/backstage-developer-hub -c backstage-backend | grep -i azure
+oc logs -n ${OCP_NAMESPACE} deployment/backstage-developer-hub -c backstage-backend | grep -i azure
 ```
 
 Resultado esperado:

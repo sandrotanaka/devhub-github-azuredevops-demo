@@ -53,10 +53,10 @@ for c in data.get('value', []):
 
 ```bash
 # Init container — instalação dos plugins
-oc logs -n tssc-dh deployment/backstage-developer-hub -c install-dynamic-plugins | grep -i azure
+oc logs -n ${OCP_NAMESPACE} deployment/backstage-developer-hub -c install-dynamic-plugins | grep -i azure
 
 # Backend — plugins inicializados
-oc logs -n tssc-dh deployment/backstage-developer-hub -c backstage-backend | grep -i azure
+oc logs -n ${OCP_NAMESPACE} deployment/backstage-developer-hub -c backstage-backend | grep -i azure
 ```
 
 ---
@@ -64,7 +64,7 @@ oc logs -n tssc-dh deployment/backstage-developer-hub -c backstage-backend | gre
 ## Verificar variáveis expandidas no pod
 
 ```bash
-oc exec -n tssc-dh deployment/backstage-developer-hub \
+oc exec -n ${OCP_NAMESPACE} deployment/backstage-developer-hub \
   -c backstage-backend -- env | grep AZURE
 ```
 
@@ -80,7 +80,7 @@ Settings → Catalog → Locations → <location> → Refresh
 Ou via API (requer token de sessão do RHDH):
 
 ```bash
-RHDH_HOST=$(oc get route -n tssc-dh -o jsonpath='{.items[0].spec.host}')
+RHDH_HOST=$(oc get route -n ${OCP_NAMESPACE} -o jsonpath='{.items[0].spec.host}')
 curl -sk -X POST "https://${RHDH_HOST}/api/catalog/locations/refresh" \
   -H "Content-Type: application/json" \
   -d "{\"type\":\"url\",\"target\":\"https://raw.githubusercontent.com/${GITHUB_USER}/devhub-github-azuredevops-demo/main/templates/all-templates.yaml\"}"

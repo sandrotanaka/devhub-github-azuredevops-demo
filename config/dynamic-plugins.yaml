@@ -1,6 +1,6 @@
 # ============================================================
 # Dynamic Plugins — Red Hat Developer Hub 1.9
-# Adicionar ao ConfigMap: tssc-developer-hub-dynamic-plugins
+# Adicionar ao ConfigMap: ${RHDH_CONFIGMAP_PLUGINS}
 # chave: dynamic-plugins.yaml
 #
 # IMPORTANTE — RHDH 1.9:

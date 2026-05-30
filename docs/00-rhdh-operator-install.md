@@ -26,9 +26,9 @@ rhdh          red-hat-developer-hub.v1.9.x   Red Hat Developer Hub   1.9.x   Suc
 ## Passo 1 — Criar o namespace
 
 ```bash
-oc new-project tssc-dh
+oc new-project devhub-azure-demo
 # ou
-oc create namespace tssc-dh
+oc create namespace devhub-azure-demo
 ```
 
 ---
@@ -49,12 +49,12 @@ B64_GITHUB_USER=$(echo -n "${GITHUB_USER}" | base64 | tr -d '\n')
 B64_GITHUB_TOKEN=$(echo -n "${GITHUB_TOKEN}" | base64 | tr -d '\n')
 
 # Criar o secret
-oc apply -n tssc-dh -f - <<YAML
+oc apply -n devhub-azure-demo -f - <<YAML
 apiVersion: v1
 kind: Secret
 metadata:
-  name: tssc-developer-hub-env
-  namespace: tssc-dh
+  name: rhdh-env
+  namespace: devhub-azure-demo
 type: Opaque
 data:
   AZURE_DEVOPS_ORG: ${B64_ORG}
@@ -77,15 +77,15 @@ PAT_BASE64=$(echo -n ":${AZURE_DEVOPS_PAT}" | base64 | tr -d '\n')
 CONFIG_CONTENT=$(sed "s|<BASE64_HARDCODED_DO_PAT>|${PAT_BASE64}|g" config/app-config.azure.yaml)
 
 # Criar o ConfigMap
-oc create configmap tssc-developer-hub-app-config \
-  -n tssc-dh \
+oc create configmap rhdh-app-config \
+  -n devhub-azure-demo \
   --from-literal="app-config.azure.yaml=${CONFIG_CONTENT}"
 ```
 
 Verificar:
 
 ```bash
-oc get configmap tssc-developer-hub-app-config -n tssc-dh -o jsonpath='{.data}' | python3 -m json.tool | grep "app-config"
+oc get configmap rhdh-app-config -n devhub-azure-demo -o jsonpath='{.data}' | python3 -m json.tool | grep "app-config"
 ```
 
 ---
@@ -93,8 +93,8 @@ oc get configmap tssc-developer-hub-app-config -n tssc-dh -o jsonpath='{.data}' 
 ## Passo 4 — Criar o ConfigMap de dynamic-plugins
 
 ```bash
-oc create configmap tssc-developer-hub-dynamic-plugins \
-  -n tssc-dh \
+oc create configmap rhdh-dynamic-plugins \
+  -n devhub-azure-demo \
   --from-literal="dynamic-plugins.yaml=$(cat << 'YAML'
 includes:
 - dynamic-plugins.default.yaml
@@ -114,21 +114,21 @@ YAML
 ## Passo 5 — Criar a instância do Backstage (CR)
 
 ```bash
-oc apply -n tssc-dh -f - <<'YAML'
+oc apply -n devhub-azure-demo -f - <<'YAML'
 apiVersion: rhdh.redhat.com/v1alpha3
 kind: Backstage
 metadata:
   name: developer-hub
-  namespace: tssc-dh
+  namespace: devhub-azure-demo
 spec:
   application:
     appConfig:
       configMaps:
-        - name: tssc-developer-hub-app-config
-    dynamicPluginsConfigMapName: tssc-developer-hub-dynamic-plugins
+        - name: rhdh-app-config
+    dynamicPluginsConfigMapName: rhdh-dynamic-plugins
     extraEnvs:
       secrets:
-        - name: tssc-developer-hub-env
+        - name: rhdh-env
     replicas: 1
     route:
       enabled: true
@@ -138,7 +138,7 @@ YAML
 Aguardar a instância ficar pronta:
 
 ```bash
-oc get backstage developer-hub -n tssc-dh -w
+oc get backstage developer-hub -n devhub-azure-demo -w
 ```
 
 Resultado esperado:
@@ -154,7 +154,7 @@ developer-hub   True
 O operador cria automaticamente os seguintes recursos:
 
 ```bash
-oc get deployment,configmap,secret -n tssc-dh | grep -i backstage
+oc get deployment,configmap,secret -n devhub-azure-demo | grep -i backstage
 ```
 
 Recursos esperados:
@@ -174,11 +174,11 @@ Recursos esperados:
 
 ```bash
 # Init container — instalação
-oc logs -n tssc-dh deployment/backstage-developer-hub \
+oc logs -n devhub-azure-demo deployment/backstage-developer-hub \
   -c install-dynamic-plugins | grep -i azure
 
 # Backend — inicialização
-oc logs -n tssc-dh deployment/backstage-developer-hub \
+oc logs -n devhub-azure-demo deployment/backstage-developer-hub \
   -c backstage-backend | grep -i azure
 ```
 
@@ -195,7 +195,7 @@ backstage info Plugin initialization in progress, newly initialized: ... 'azure-
 ## Passo 8 — Acessar o RHDH
 
 ```bash
-oc get route -n tssc-dh -o jsonpath='{.items[0].spec.host}'
+oc get route -n devhub-azure-demo -o jsonpath='{.items[0].spec.host}'
 ```
 
 Acesse `https://<host-retornado>` no browser.

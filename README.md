@@ -70,11 +70,11 @@ Siga `docs/02-rhdh-install.md`.
 
 | Item | Valor |
 |---|---|
-| OpenShift namespace | `tssc-dh` |
+| OpenShift namespace | `${OCP_NAMESPACE}` |
 | Backstage CR | `developer-hub` |
-| ConfigMap app-config | `tssc-developer-hub-app-config` |
-| ConfigMap dynamic-plugins | `tssc-developer-hub-dynamic-plugins` |
-| Secret de env vars | `tssc-developer-hub-env` |
+| ConfigMap app-config | `${RHDH_CONFIGMAP_APPCONFIG}` |
+| ConfigMap dynamic-plugins | `${RHDH_CONFIGMAP_PLUGINS}` |
+| Secret de env vars | `${RHDH_SECRET}` |
 | Deployment | `backstage-developer-hub` |
 | RHDH versão | 1.9 |
 

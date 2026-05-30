@@ -111,7 +111,7 @@ Adicione `GITHUB_TOKEN` ao secret do RHDH:
 ```bash
 B64_GITHUB_TOKEN=$(echo -n "${GITHUB_TOKEN}" | base64)
 
-oc patch secret tssc-developer-hub-env -n tssc-dh \
+oc patch secret ${RHDH_SECRET} -n ${OCP_NAMESPACE} \
   --type='json' \
   -p="[{\"op\":\"add\",\"path\":\"/data/GITHUB_TOKEN\",\"value\":\"${B64_GITHUB_TOKEN}\"}]"
 ```
@@ -119,12 +119,12 @@ oc patch secret tssc-developer-hub-env -n tssc-dh \
 Aplique o patch no app-config:
 
 ```bash
-CURRENT=$(oc get configmap tssc-developer-hub-app-config -n tssc-dh \
+CURRENT=$(oc get configmap ${RHDH_CONFIGMAP_APPCONFIG} -n ${OCP_NAMESPACE} \
   -o jsonpath='{.data.app-config\.azure\.yaml}')
 
 NEW_CONFIG=$(echo "${CURRENT}" | sed "s|integrations:|integrations:\n  github:\n    - host: github.com\n      token: \${GITHUB_TOKEN}|")
 
-oc patch configmap tssc-developer-hub-app-config -n tssc-dh \
+oc patch configmap ${RHDH_CONFIGMAP_APPCONFIG} -n ${OCP_NAMESPACE} \
   --type=merge \
   -p "{\"data\":{\"app-config.azure.yaml\":$(echo "${NEW_CONFIG}" | python3 -c 'import sys,json; print(json.dumps(sys.stdin.read()))')}}"
 ```
@@ -132,6 +132,6 @@ oc patch configmap tssc-developer-hub-app-config -n tssc-dh \
 Reinicie o RHDH:
 
 ```bash
-oc rollout restart deployment/backstage-developer-hub -n tssc-dh
-oc rollout status deployment/backstage-developer-hub -n tssc-dh
+oc rollout restart deployment/backstage-developer-hub -n ${OCP_NAMESPACE}
+oc rollout status deployment/backstage-developer-hub -n ${OCP_NAMESPACE}
 ```

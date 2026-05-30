@@ -120,7 +120,7 @@ Se a aba aparecer vazia, verifique:
 
 ```bash
 # 1. Plugins inicializados
-oc logs -n tssc-dh deployment/backstage-developer-hub \
+oc logs -n ${OCP_NAMESPACE} deployment/backstage-developer-hub \
   -c backstage-backend | grep -i azure
 
 # 2. Anotações do catalog-info.yaml estão corretas:
