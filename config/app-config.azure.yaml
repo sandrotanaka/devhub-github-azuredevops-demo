@@ -1,4 +1,7 @@
 integrations:
+  github:
+    - host: github.com
+      token: ${GITHUB_TOKEN}
   azure:
     - host: dev.azure.com
       credentials:
@@ -21,9 +24,9 @@ proxy:
       credentials: dangerously-allow-unauthenticated
       headers:
         # IMPORTANTE: variáveis de env NÃO são expandidas aqui.
-        # Execute: echo -n ":<SEU_PAT>" | base64
+        # Execute: echo -n ":<SEU_PAT>" | base64 | tr -d '\n'
         # e substitua o valor abaixo pelo resultado.
-        Authorization: "Basic OkFTNk1tZ0FVc29BYkVGV0JHeUkzREZNNHhaR203dngxUFRjUHJYdGV5R2Jjek1aOVFiRDBKUVFKOTlDRUFDQUFBQUFBQUFBQUFBQVNBWkRPM1AwYw=="
+        Authorization: "Basic <BASE64_HARDCODED_DO_PAT>"
 
 catalog:
   locations:

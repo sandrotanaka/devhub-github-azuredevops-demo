@@ -1,4 +1,4 @@
-# Red Hat Developer Hub — Demo com Azure DevOps
+# Red Hat Developer Hub — Demo com GitHub + Azure DevOps
 
 Repositório de referência para instalação e configuração do [Red Hat Developer Hub (RHDH)](https://developers.redhat.com/rhdh) integrado ao **Azure DevOps**, com template Backstage validado para criação de aplicações Quarkus.
 
@@ -9,10 +9,10 @@ Repositório de referência para instalação e configuração do [Red Hat Devel
 | Ferramenta | Versão mínima |
 |---|---|
 | OpenShift CLI (`oc`) | 4.12+ |
-| Acesso ao cluster OpenShift | namespace `tssc-dh` criado |
+| Operador RHDH instalado | 1.9+ |
 | Azure DevOps | Organização e projeto criados |
-| PAT do Azure DevOps | Permissões: Build (R/W), Code (R), Service Connections (R) |
-| GitHub | Conta com permissão para criar repositórios |
+| PAT do Azure DevOps | Permissões: Build (R/W), Code (R), Service Connections (R/Q) |
+| GitHub | Conta com token de acesso (`repo` ou `public_repo`) |
 
 ---
 
@@ -20,27 +20,23 @@ Repositório de referência para instalação e configuração do [Red Hat Devel
 
 ```
 devhub-github-azuredevops-demo/
-├── docs/                        # Passo a passo da instalação
-│   ├── 01-prerequisites.md
-│   ├── 02-rhdh-install.md
-│   ├── 03-azure-devops.md
-│   └── 04-templates.md
-├── config/                      # YAMLs dos ConfigMaps (sem valores sensíveis)
-│   ├── app-config.azure.yaml
-│   └── dynamic-plugins.yaml
-├── scripts/                     # Shell scripts por etapa
-│   ├── 01-create-secret.sh
-│   ├── 02-patch-configmap.sh
-│   ├── 03-restart-rhdh.sh
-│   └── 04-get-connected-service-id.sh
-├── templates/                   # Templates Backstage
+├── docs/
+│   ├── 00-rhdh-operator-install.md  ← instalar RHDH do zero
+│   ├── 01-prerequisites.md          ← pré-requisitos e tokens
+│   ├── 02-rhdh-install.md           ← configurar instância existente
+│   ├── 03-azure-devops.md           ← projeto ADO + Service Connection
+│   └── 04-templates.md              ← templates Backstage
+├── config/
+│   ├── app-config.azure.yaml        ← integração GitHub + Azure
+│   └── dynamic-plugins.yaml         ← plugins Azure DevOps (OCI)
+├── templates/
 │   ├── all-templates.yaml
 │   └── quarkus-github-ado/
 │       ├── template.yaml
 │       └── skeleton/
 ├── troubleshooting/
 │   └── errors.md
-└── .env.example                 # Variáveis de ambiente necessárias
+└── .env.example                     ← variáveis de ambiente necessárias
 ```
 
 ---
@@ -57,26 +53,29 @@ cp .env.example .env
 # Edite .env com seus valores reais
 
 # 3. Carregue as variáveis
-source .env
-
-# 4. Execute os scripts em ordem
-bash scripts/01-create-secret.sh
-bash scripts/02-patch-configmap.sh
-bash scripts/03-restart-rhdh.sh
+set -a && source .env && set +a
 ```
 
-Consulte [`docs/`](./docs/) para o guia completo passo a passo.
+### Instalação do zero (RHDH ainda não instalado)
+
+Siga `docs/00-rhdh-operator-install.md`.
+
+### Configuração de instância existente
+
+Siga `docs/02-rhdh-install.md`.
 
 ---
 
-## Referência de ambiente
+## Referência de ambiente validado
 
-| Item | Valor padrão |
+| Item | Valor |
 |---|---|
 | OpenShift namespace | `tssc-dh` |
 | Backstage CR | `developer-hub` |
 | ConfigMap app-config | `tssc-developer-hub-app-config` |
 | ConfigMap dynamic-plugins | `tssc-developer-hub-dynamic-plugins` |
 | Secret de env vars | `tssc-developer-hub-env` |
+| Deployment | `backstage-developer-hub` |
+| RHDH versão | 1.9 |
 
-Todos os valores podem ser sobrescritos via `.env`.
+> Valores podem ser sobrescritos via `.env`.
