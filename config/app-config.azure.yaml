@@ -8,13 +8,10 @@ integrations:
         - organizations:
             - ${AZURE_DEVOPS_ORG}
           personalAccessToken: ${AZURE_DEVOPS_PAT}
-
-# Necessário para o plugin Azure DevOps backend (aba CI)
 azureDevOps:
   host: dev.azure.com
   organization: ${AZURE_DEVOPS_ORG}
   token: ${AZURE_DEVOPS_PAT}
-
 proxy:
   endpoints:
     /azure-devops:
@@ -23,11 +20,7 @@ proxy:
       allowedMethods: [GET, POST, DELETE, PATCH]
       credentials: dangerously-allow-unauthenticated
       headers:
-        # IMPORTANTE: variáveis de env NÃO são expandidas aqui.
-        # Execute: echo -n ":<SEU_PAT>" | base64 | tr -d '\n'
-        # e substitua o valor abaixo pelo resultado.
-        Authorization: "Basic <BASE64_HARDCODED_DO_PAT>"
-
+        Authorization: "Basic OkFTNk1tZ0FVc29BYkVGV0JHeUkzREZNNHhaR203dngxUFRjUHJYdGV5R2Jjek1aOVFiRDBKUVFKOTlDRUFDQUFBQUFBQUFBQUFBQVNBWkRPM1AwYw=="
 catalog:
   locations:
     - type: url
@@ -44,3 +37,15 @@ catalog:
             minutes: 30
           timeout:
             minutes: 3
+backend:
+  reading:
+    allow:
+      - host: raw.githubusercontent.com
+      - host: dev.azure.com
+auth:
+  environment: development
+  providers:
+    guest:
+      dangerouslyAllowOutsideDevelopment: true
+permission:
+  enabled: false
