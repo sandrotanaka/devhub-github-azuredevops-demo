@@ -2,209 +2,135 @@
 
 Este guia cobre a criação de uma instância do Red Hat Developer Hub do zero, partindo de um cluster OpenShift com o operador RHDH já instalado via OperatorHub.
 
----
+## Ambiente validado
+
+| Item | Valor |
+|------|-------|
+| Operador | rhdh-operator.v1.9.4 |
+| Namespace do operador | openshift-operators |
+| Namespace da instância | rhdh-ado-demo |
+| API version do CR | rhdh.redhat.com/v1alpha3 |
+| Backstage CR name | developer-hub |
+| Deployment | backstage-developer-hub |
 
 ## Pré-requisitos
 
-- Operador **Red Hat Developer Hub** instalado via OperatorHub
-- Acesso de administrador ao namespace de destino
-- `oc` CLI autenticado no cluster
+- Operador Red Hat Developer Hub instalado via OperatorHub (cluster-scoped)
+- Acesso cluster-admin ao cluster
+- oc CLI autenticado
 
-Verificar se o operador está instalado:
+Verificar operador instalado:
 
-```bash
-oc get csv -A | grep developer-hub
-```
+    oc get csv -n openshift-operators | grep -i rhdh
+    oc get crd backstages.rhdh.redhat.com
 
-Resultado esperado:
-```
-rhdh          red-hat-developer-hub.v1.9.x   Red Hat Developer Hub   1.9.x   Succeeded
-```
+## Passo 1 — Carregar variáveis de ambiente
 
----
+IMPORTANTE: sempre carregue as variáveis antes de executar qualquer comando.
 
-## Passo 1 — Criar o namespace
+    unset RHDH_SECRET OCP_NAMESPACE AZURE_DEVOPS_PAT GITHUB_TOKEN \
+      RHDH_CONFIGMAP_APPCONFIG RHDH_CONFIGMAP_PLUGINS RHDH_DEPLOYMENT \
+      GITHUB_USER AZURE_DEVOPS_ORG AZURE_DEVOPS_PROJECT
 
-```bash
-oc new-project devhub-azure-demo
-# ou
-oc create namespace devhub-azure-demo
-```
+    set -a && source .env && set +a
 
----
+    echo "OCP_NAMESPACE=${OCP_NAMESPACE}"
+    echo "RHDH_SECRET=${RHDH_SECRET}"
+    echo "PAT começa com: ${AZURE_DEVOPS_PAT:0:6}"
+    echo "GITHUB_TOKEN começa com: ${GITHUB_TOKEN:0:6}"
 
-## Passo 2 — Criar o Secret de variáveis de ambiente
+## Passo 2 — Criar o namespace
 
-O operador injeta as variáveis deste secret no pod do RHDH. Crie-o antes da instância:
+    oc new-project ${OCP_NAMESPACE}
+    oc get project ${OCP_NAMESPACE}
 
-```bash
-# Carregar variáveis
-set -a && source .env && set +a
+## Passo 3 — Criar o Secret de variáveis de ambiente
 
-# Gerar Base64
-B64_ORG=$(echo -n "${AZURE_DEVOPS_ORG}" | base64 | tr -d '\n')
-B64_PROJECT=$(echo -n "${AZURE_DEVOPS_PROJECT}" | base64 | tr -d '\n')
-B64_PAT=$(echo -n "${AZURE_DEVOPS_PAT}" | base64 | tr -d '\n')
-B64_GITHUB_USER=$(echo -n "${GITHUB_USER}" | base64 | tr -d '\n')
-B64_GITHUB_TOKEN=$(echo -n "${GITHUB_TOKEN}" | base64 | tr -d '\n')
+    AZURE_DEVOPS_PAT_BASE64=$(printf ':%s' "${AZURE_DEVOPS_PAT}" | base64)
 
-# Criar o secret
-oc apply -n devhub-azure-demo -f - <<YAML
-apiVersion: v1
-kind: Secret
-metadata:
-  name: rhdh-env
-  namespace: devhub-azure-demo
-type: Opaque
-data:
-  AZURE_DEVOPS_ORG: ${B64_ORG}
-  AZURE_DEVOPS_PROJECT: ${B64_PROJECT}
-  AZURE_DEVOPS_PAT: ${B64_PAT}
-  GITHUB_USER: ${B64_GITHUB_USER}
-  GITHUB_TOKEN: ${B64_GITHUB_TOKEN}
-YAML
-```
+    oc create secret generic ${RHDH_SECRET} \
+      --namespace=${OCP_NAMESPACE} \
+      --from-literal=GITHUB_TOKEN=${GITHUB_TOKEN} \
+      --from-literal=GITHUB_USER=${GITHUB_USER} \
+      --from-literal=GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID} \
+      --from-literal=GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET} \
+      --from-literal=AZURE_DEVOPS_PAT=${AZURE_DEVOPS_PAT} \
+      --from-literal=AZURE_DEVOPS_PAT_BASE64=${AZURE_DEVOPS_PAT_BASE64} \
+      --from-literal=AZURE_DEVOPS_ORG=${AZURE_DEVOPS_ORG} \
+      --from-literal=AZURE_DEVOPS_PROJECT=${AZURE_DEVOPS_PROJECT}
 
----
+    oc get secret ${RHDH_SECRET} -n ${OCP_NAMESPACE}
 
-## Passo 3 — Criar o ConfigMap de app-config
+## Passo 4 — Criar o ConfigMap de app-config
 
-```bash
-# Calcular PAT Base64 para o proxy header
-PAT_BASE64=$(echo -n ":${AZURE_DEVOPS_PAT}" | base64 | tr -d '\n')
+    oc create configmap ${RHDH_CONFIGMAP_APPCONFIG} \
+      --namespace=${OCP_NAMESPACE} \
+      --from-file=app-config.yaml=config/app-config.azure.yaml
 
-# Processar o template substituindo o placeholder
-CONFIG_CONTENT=$(sed "s|<BASE64_HARDCODED_DO_PAT>|${PAT_BASE64}|g" config/app-config.azure.yaml)
+## Passo 5 — Criar o ConfigMap de dynamic-plugins
 
-# Criar o ConfigMap
-oc create configmap rhdh-app-config \
-  -n devhub-azure-demo \
-  --from-literal="app-config.azure.yaml=${CONFIG_CONTENT}"
-```
+    oc create configmap ${RHDH_CONFIGMAP_PLUGINS} \
+      --namespace=${OCP_NAMESPACE} \
+      --from-file=dynamic-plugins.yaml=config/dynamic-plugins.yaml
 
-Verificar:
+## Passo 6 — Criar a instância Backstage (CR)
 
-```bash
-oc get configmap rhdh-app-config -n devhub-azure-demo -o jsonpath='{.data}' | python3 -m json.tool | grep "app-config"
-```
+    cat <<EOF | oc apply -n ${OCP_NAMESPACE} -f -
+    apiVersion: rhdh.redhat.com/v1alpha3
+    kind: Backstage
+    metadata:
+      name: developer-hub
+      namespace: ${OCP_NAMESPACE}
+    spec:
+      application:
+        appConfig:
+          configMaps:
+            - name: ${RHDH_CONFIGMAP_APPCONFIG}
+          mountPath: /opt/app-root/src
+        dynamicPluginsConfigMapName: ${RHDH_CONFIGMAP_PLUGINS}
+        extraEnvs:
+          secrets:
+            - name: ${RHDH_SECRET}
+        replicas: 1
+        route:
+          enabled: true
+      database:
+        enableLocalDb: true
+    EOF
 
----
+## Passo 7 — Acompanhar pods
 
-## Passo 4 — Criar o ConfigMap de dynamic-plugins
-
-```bash
-oc create configmap rhdh-dynamic-plugins \
-  -n devhub-azure-demo \
-  --from-literal="dynamic-plugins.yaml=$(cat << 'YAML'
-includes:
-- dynamic-plugins.default.yaml
-plugins:
-- disabled: false
-  package: oci://ghcr.io/redhat-developer/rhdh-plugin-export-overlays/backstage-community-plugin-azure-devops:bs_1.45.3__0.23.0
-- disabled: false
-  package: oci://ghcr.io/redhat-developer/rhdh-plugin-export-overlays/backstage-community-plugin-azure-devops-backend:bs_1.45.3__0.23.0
-YAML
-)"
-```
-
-> ⚠️ RHDH 1.9: plugins Azure DevOps são distribuídos via OCI (`ghcr.io`). Paths locais `./dynamic-plugins/dist/backstage-plugin-azure-devops*` não existem nesta versão. Veja `config/dynamic-plugins.yaml`.
-
----
-
-## Passo 5 — Criar a instância do Backstage (CR)
-
-```bash
-oc apply -n devhub-azure-demo -f - <<'YAML'
-apiVersion: rhdh.redhat.com/v1alpha3
-kind: Backstage
-metadata:
-  name: developer-hub
-  namespace: devhub-azure-demo
-spec:
-  application:
-    appConfig:
-      configMaps:
-        - name: rhdh-app-config
-    dynamicPluginsConfigMapName: rhdh-dynamic-plugins
-    extraEnvs:
-      secrets:
-        - name: rhdh-env
-    replicas: 1
-    route:
-      enabled: true
-YAML
-```
-
-Aguardar a instância ficar pronta:
-
-```bash
-oc get backstage developer-hub -n devhub-azure-demo -w
-```
-
-Resultado esperado:
-```
-NAME            READY
-developer-hub   True
-```
-
----
-
-## Passo 6 — Verificar os recursos criados
-
-O operador cria automaticamente os seguintes recursos:
-
-```bash
-oc get deployment,configmap,secret -n devhub-azure-demo | grep -i backstage
-```
-
-Recursos esperados:
-
-| Recurso | Nome |
-|---|---|
-| Deployment | `backstage-developer-hub` |
-| ConfigMap (operador) | `backstage-appconfig-developer-hub` |
-| ConfigMap (operador) | `backstage-dynamic-plugins-developer-hub` |
-| ConfigMap (operador) | `backstage-files-developer-hub` |
-
-> Não edite os ConfigMaps prefixados com `backstage-` — são gerenciados internamente pelo operador.
-
----
-
-## Passo 7 — Verificar plugins Azure carregados
-
-```bash
-# Init container — instalação
-oc logs -n devhub-azure-demo deployment/backstage-developer-hub \
-  -c install-dynamic-plugins | grep -i azure
-
-# Backend — inicialização
-oc logs -n devhub-azure-demo deployment/backstage-developer-hub \
-  -c backstage-backend | grep -i azure
-```
-
-Resultado esperado no backend:
-```
-backstage info loaded dynamic backend plugin '@backstage-community/plugin-azure-devops-backend-dynamic'
-proxy info [HPM] Proxy created: /azure-devops  -> https://dev.azure.com
-scalprum info Loaded dynamic frontend plugin '@backstage-community/plugin-azure-devops-dynamic'
-backstage info Plugin initialization in progress, newly initialized: ... 'azure-devops' ...
-```
-
----
+    oc get pods -n ${OCP_NAMESPACE} -w
 
 ## Passo 8 — Acessar o RHDH
 
-```bash
-oc get route -n devhub-azure-demo -o jsonpath='{.items[0].spec.host}'
-```
+    oc get route -n ${OCP_NAMESPACE} -o jsonpath='{.items[0].spec.host}'
 
-Acesse `https://<host-retornado>` no browser.
+## Atualizar ConfigMaps (manutenção)
 
----
+    oc delete configmap ${RHDH_CONFIGMAP_APPCONFIG} -n ${OCP_NAMESPACE}
+    oc create configmap ${RHDH_CONFIGMAP_APPCONFIG} \
+      --namespace=${OCP_NAMESPACE} \
+      --from-file=app-config.yaml=config/app-config.azure.yaml
+
+    oc delete configmap ${RHDH_CONFIGMAP_PLUGINS} -n ${OCP_NAMESPACE}
+    oc create configmap ${RHDH_CONFIGMAP_PLUGINS} \
+      --namespace=${OCP_NAMESPACE} \
+      --from-file=dynamic-plugins.yaml=config/dynamic-plugins.yaml
+
+    oc rollout restart deployment/${RHDH_DEPLOYMENT} -n ${OCP_NAMESPACE}
+    oc rollout status deployment/${RHDH_DEPLOYMENT} -n ${OCP_NAMESPACE}
+
+## Notas importantes
+
+- O operador é cluster-scoped — não precisa ser reinstalado por namespace
+- O proxy /azure-devops usa AZURE_DEVOPS_PAT_BASE64 do Secret para autenticação
+- Variáveis de ambiente NÃO são expandidas no bloco headers do proxy — use o Secret
+- O catalog location deve usar URL github.com/blob/ (não raw.githubusercontent.com)
 
 ## Próximos passos
 
-Com a instância funcionando, siga:
-
-- `docs/03-azure-devops.md` — criar projeto ADO, PAT e Service Connection GitHub
-- `docs/04-templates.md` — registrar o template `quarkus-github-ado` no catálogo
+- docs/01-prerequisites.md
+- docs/02-rhdh-install.md
+- docs/03-azure-devops.md
+- docs/04-templates.md
