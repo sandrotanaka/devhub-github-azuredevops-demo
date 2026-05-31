@@ -4,6 +4,7 @@ metadata:
   name: ${{ values.appName }}
   description: ${{ values.description }}
   annotations:
+    backstage.io/source-location: url:https://github.com/${{ values.githubUser }}/${{ values.appName }}
     github.com/project-slug: ${{ values.githubUser }}/${{ values.appName }}
     dev.azure.com/host-org: dev.azure.com/${{ values.adoOrg }}
     dev.azure.com/project: ${{ values.adoProject }}
