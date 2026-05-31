@@ -50,3 +50,5 @@ auth:
       dangerouslyAllowOutsideDevelopment: true
 permission:
   enabled: false
+githubPullRequests:
+  authorizationToken: ${GITHUB_TOKEN}
