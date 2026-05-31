@@ -22,10 +22,22 @@ proxy:
       headers:
         Authorization: "Basic OkFTNk1tZ0FVc29BYkVGV0JHeUkzREZNNHhaR203dngxUFRjUHJYdGV5R2Jjek1aOVFiRDBKUVFKOTlDRUFDQUFBQUFBQUFBQUFBQVNBWkRPM1AwYw=="
 catalog:
+  rules:
+    - allow:
+        - Component
+        - System
+        - Group
+        - User
+        - Resource
+        - Location
+        - Template
+        - API
   locations:
     - type: url
       #target: https://raw.githubusercontent.com/${GITHUB_USER}/devhub-github-azuredevops-demo/main/templates/all-templates.yaml
       target: https://github.com/sandrotanaka/devhub-github-azuredevops-demo/blob/main/templates/all-templates.yaml
+    - type: url
+      target: https://github.com/sandrotanaka/devhub-github-azuredevops-demo/blob/main/catalog/users.yaml
   providers:
     azureDevOps:
       default:
@@ -44,10 +56,21 @@ backend:
       - host: raw.githubusercontent.com
       - host: dev.azure.com
 auth:
-  environment: development
+  environment: production
+  #dangerouslyAllowSignInWithoutUserInCatalog: true
   providers:
+    github:
+      production:
+        clientId: ${GITHUB_CLIENT_ID}
+        clientSecret: ${GITHUB_CLIENT_SECRET}
+        signIn:
+          resolvers:
+            - resolver: usernameMatchingUserEntityName
+            #- resolver: emailMatchingUserEntityProfileEmail
+            #- resolver: emailLocalPartMatchingUserEntityName
     guest:
       dangerouslyAllowOutsideDevelopment: true
+signInPage: github
 permission:
   enabled: false
 githubPullRequests:
