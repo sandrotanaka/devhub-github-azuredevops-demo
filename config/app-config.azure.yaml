@@ -35,7 +35,8 @@ catalog:
   locations:
     - type: url
       #target: https://raw.githubusercontent.com/${GITHUB_USER}/devhub-github-azuredevops-demo/main/templates/all-templates.yaml
-      target: https://github.com/sandrotanaka/devhub-github-azuredevops-demo/blob/main/templates/all-templates.yaml
+      #target: https://github.com/sandrotanaka/devhub-github-azuredevops-demo/blob/main/templates/all-templates.yaml
+      target: https://github.com/sandrotanaka/devhub-github-azuredevops-demo/blob/feat/quarkus-app-skeleton/templates/all-templates.yaml
     - type: url
       target: https://github.com/sandrotanaka/devhub-github-azuredevops-demo/blob/main/catalog/users.yaml
     - type: url
