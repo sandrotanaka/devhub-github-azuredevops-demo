@@ -1,5 +1,11 @@
 plugins:
   - disabled: false
+    package: ./dynamic-plugins/dist/backstage-community-plugin-scaffolder-backend-module-kubernetes-dynamic
+  - disabled: false
+    package: ./dynamic-plugins/dist/backstage-plugin-scaffolder-backend-module-github-dynamic
+  - disabled: false
+    package: ./dynamic-plugins/dist/roadiehq-scaffolder-backend-module-http-request-dynamic
+  - disabled: false
     package: oci://ghcr.io/redhat-developer/rhdh-plugin-export-overlays/backstage-community-plugin-azure-devops:bs_1.45.3__0.23.0
     pluginConfig:
       dynamicPlugins:
@@ -18,9 +24,11 @@ plugins:
   - disabled: false
     package: oci://ghcr.io/redhat-developer/rhdh-plugin-export-overlays/backstage-community-plugin-azure-devops-backend:bs_1.45.3__0.23.0
   - disabled: false
-    package: ./dynamic-plugins/dist/backstage-plugin-scaffolder-backend-module-github-dynamic
+    package: oci://ghcr.io/redhat-developer/rhdh-plugin-export-overlays/backstage-community-plugin-catalog-backend-module-azure-devops-annotator-processor:bs_1.45.3__0.14.0
   - disabled: false
-    package: ./dynamic-plugins/dist/roadiehq-scaffolder-backend-module-http-request-dynamic
+    package: oci://ghcr.io/redhat-developer/rhdh-plugin-export-overlays/backstage-community-plugin-scaffolder-backend-module-azure-devops:bs_1.45.3__0.18.0
+  - disabled: false
+    package: oci://ghcr.io/redhat-developer/rhdh-plugin-export-overlays/backstage-community-plugin-search-backend-module-azure-devops:bs_1.45.3__0.1.2
   - disabled: false
     package: oci://ghcr.io/redhat-developer/rhdh-plugin-export-overlays/roadiehq-backstage-plugin-github-pull-requests:bs_1.45.3__3.6.2
     pluginConfig:
