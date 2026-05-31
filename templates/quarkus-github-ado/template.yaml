@@ -39,7 +39,6 @@ spec:
         githubUser:
           title: Usuário ou organização GitHub
           type: string
-
         repoVisibility:
           title: Visibilidade do repositório
           type: string
@@ -54,11 +53,9 @@ spec:
         adoOrg:
           title: Organização ADO
           type: string
-
         adoProject:
           title: Projeto ADO
           type: string
-
 
   steps:
     - id: fetch
@@ -88,13 +85,9 @@ spec:
       input:
         method: POST
         path: "/proxy/azure-devops/${{ parameters.adoOrg }}/${{ parameters.adoProject }}/_apis/build/definitions?api-version=7.1"
-        continueOnBadResponse: true
+        continueOnBadResponse: false
         headers:
           Content-Type: "application/json"
-          # IMPORTANTE: variáveis de env NÃO são expandidas aqui.
-          # Execute: echo -n ":<SEU_PAT>" | base64
-          # e substitua o valor abaixo pelo resultado.
-          Authorization: "Basic OkFTNk1tZ0FVc29BYkVGV0JHeUkzREZNNHhaR203dngxUFRjUHJYdGV5R2Jjek1aOVFiRDBKUVFKOTlDRUFDQUFBQUFBQUFBQUFBQVNBWkRPM1AwYw=="
         body:
           name: "${{ parameters.adoOrg }}.${{ parameters.appName }}"
           process:
@@ -110,7 +103,6 @@ spec:
             type: "GitHub"
             defaultBranch: "main"
             properties:
-              # Obtido via: bash scripts/04-get-connected-service-id.sh
               connectedServiceId: "5ca773a8-a249-418c-b8b2-95f61e4f8e6c"
 
     - id: run-pipeline
@@ -122,7 +114,6 @@ spec:
         continueOnBadResponse: true
         headers:
           Content-Type: "application/json"
-          Authorization: "Basic <xpto>"
         body:
           definition:
             id: ${{ steps['create-pipeline'].output.body.id }}
