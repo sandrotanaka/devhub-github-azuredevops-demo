@@ -1,0 +1,7 @@
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: rhdh-ado-demo
+  description: Sistema de demonstração RHDH com Azure DevOps
+spec:
+  owner: user:sandrotanaka
