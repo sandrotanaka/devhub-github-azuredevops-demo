@@ -39,7 +39,6 @@ spec:
         githubUser:
           title: Usuário ou organização GitHub
           type: string
-
         repoVisibility:
           title: Visibilidade do repositório
           type: string
@@ -54,11 +53,9 @@ spec:
         adoOrg:
           title: Organização ADO
           type: string
-
         adoProject:
           title: Projeto ADO
           type: string
-
 
   steps:
     - id: fetch
@@ -84,49 +81,24 @@ spec:
 
     - id: create-pipeline
       name: Criar pipeline no Azure DevOps
-      action: http:backstage:request
+      action: azure:pipeline:create
       input:
-        method: POST
-        path: "/proxy/azure-devops/${{ parameters.adoOrg }}/${{ parameters.adoProject }}/_apis/build/definitions?api-version=7.1"
-        continueOnBadResponse: true
-        headers:
-          Content-Type: "application/json"
-          # IMPORTANTE: variáveis de env NÃO são expandidas aqui.
-          # Execute: echo -n ":<SEU_PAT>" | base64
-          # e substitua o valor abaixo pelo resultado.
-          Authorization: "Basic OkFTNk1tZ0FVc29BYkVGV0JHeUkzREZNNHhaR203dngxUFRjUHJYdGV5R2Jjek1aOVFiRDBKUVFKOTlDRUFDQUFBQUFBQUFBQUFBQVNBWkRPM1AwYw=="
-        body:
-          name: "${{ parameters.adoOrg }}.${{ parameters.appName }}"
-          process:
-            type: 2
-            yamlFilename: "/azure-pipelines.yml"
-          queue:
-            pool:
-              name: "Azure Pipelines"
-          repository:
-            id: "${{ parameters.githubUser }}/${{ parameters.appName }}"
-            name: "${{ parameters.githubUser }}/${{ parameters.appName }}"
-            url: "https://github.com/${{ parameters.githubUser }}/${{ parameters.appName }}"
-            type: "GitHub"
-            defaultBranch: "main"
-            properties:
-              # Obtido via: bash scripts/04-get-connected-service-id.sh
-              connectedServiceId: "5ca773a8-a249-418c-b8b2-95f61e4f8e6c"
+        organization: ${{ parameters.adoOrg }}
+        project: ${{ parameters.adoProject }}
+        folder: "/"
+        name: "${{ parameters.adoOrg }}.${{ parameters.appName }}"
+        repositoryId: "${{ parameters.githubUser }}/${{ parameters.appName }}"
+        repositoryName: "${{ parameters.githubUser }}/${{ parameters.appName }}"
+        yamlPath: "/azure-pipelines.yml"
+        serviceConnectionId: "5ca773a8-a249-418c-b8b2-95f61e4f8e6c"
 
     - id: run-pipeline
       name: Disparar primeira execução
-      action: http:backstage:request
+      action: azure:pipeline:run
       input:
-        method: POST
-        path: "/proxy/azure-devops/${{ parameters.adoOrg }}/${{ parameters.adoProject }}/_apis/build/builds?api-version=7.1"
-        continueOnBadResponse: true
-        headers:
-          Content-Type: "application/json"
-          Authorization: "Basic OkFTNk1tZ0FVc29BYkVGV0JHeUkzREZNNHhaR203dngxUFRjUHJYdGV5R2Jjek1aOVFiRDBKUVFKOTlDRUFDQUFBQUFBQUFBQUFBQVNBWkRPM1AwYw=="
-        body:
-          definition:
-            id: ${{ steps['create-pipeline'].output.body.id }}
-          sourceBranch: "refs/heads/main"
+        organization: ${{ parameters.adoOrg }}
+        project: ${{ parameters.adoProject }}
+        pipelineId: ${{ steps['create-pipeline'].output.pipelineId }}
 
     - id: register
       name: Registrar no catálogo RHDH
