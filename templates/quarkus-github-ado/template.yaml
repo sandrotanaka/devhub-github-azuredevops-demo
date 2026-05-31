@@ -113,27 +113,20 @@ spec:
               # Obtido via: bash scripts/04-get-connected-service-id.sh
               connectedServiceId: "5ca773a8-a249-418c-b8b2-95f61e4f8e6c"
 
-    # - id: run-pipeline
-    #   name: Disparar primeira execução
-    #   action: http:backstage:request
-    #   input:
-    #     method: POST
-    #     path: "/proxy/azure-devops/${{ parameters.adoOrg }}/${{ parameters.adoProject }}/_apis/build/builds?api-version=7.1"
-    #     continueOnBadResponse: true
-    #     headers:
-    #       Content-Type: "application/json"
-    #       Authorization: "Basic <xpto>"
-    #     body:
-    #       definition:
-    #         id: ${{ steps['create-pipeline'].output.body.id }}
-    #       sourceBranch: "refs/heads/main"
     - id: run-pipeline
       name: Disparar primeira execução
-      action: azure:pipeline:run
+      action: http:backstage:request
       input:
-        organization: ${{ parameters.adoOrg }}
-        project: ${{ parameters.adoProject }}
-        pipelineId: ${{ steps['create-pipeline'].output.body.id }}
+        method: POST
+        path: "/proxy/azure-devops/${{ parameters.adoOrg }}/${{ parameters.adoProject }}/_apis/build/builds?api-version=7.1"
+        continueOnBadResponse: true
+        headers:
+          Content-Type: "application/json"
+          Authorization: "Basic <xpto>"
+        body:
+          definition:
+            id: ${{ steps['create-pipeline'].output.body.id }}
+          sourceBranch: "refs/heads/main"
 
     - id: register
       name: Registrar no catálogo RHDH
