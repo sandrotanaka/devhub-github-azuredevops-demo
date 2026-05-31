@@ -4,11 +4,11 @@ metadata:
   name: ${{ values.appName }}
   description: ${{ values.description }}
   annotations:
-    #github.com/project-slug: ${{ values.githubUser }}/${{ values.appName }}
+    github.com/project-slug: ${{ values.githubUser }}/${{ values.appName }}
     dev.azure.com/host-org: dev.azure.com/${{ values.adoOrg }}
     dev.azure.com/project: ${{ values.adoProject }}
     dev.azure.com/build-definition: ${{ values.adoOrg }}.${{ values.appName }}
-    dev.azure.com/project-repo: ${{ values.adoProject }}/${{ values.adoOrg }}.${{ values.appName }}
+    #dev.azure.com/project-repo: ${{ values.adoProject }}/${{ values.adoOrg }}.${{ values.appName }}
   tags:
     - quarkus
     - java
