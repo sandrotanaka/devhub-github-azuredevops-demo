@@ -3,10 +3,9 @@ trigger:
     include:
       - main
 
-# OBRIGATÓRIO: sem este bloco o disparo via API falha com "No pool was specified"
 pool:
   vmImage: 'ubuntu-latest'
 
 steps:
-  - script: echo "Build da aplicação ${{ '${{ values.appName }}' }}"
-    displayName: 'Build'
+  - script: echo "Build da aplicação ${{ values.appName }}"
+    displayName: 'Build ${{ values.appName }}'

@@ -24,7 +24,8 @@ proxy:
 catalog:
   locations:
     - type: url
-      target: https://raw.githubusercontent.com/${GITHUB_USER}/devhub-github-azuredevops-demo/main/templates/all-templates.yaml
+      #target: https://raw.githubusercontent.com/${GITHUB_USER}/devhub-github-azuredevops-demo/main/templates/all-templates.yaml
+      target: https://github.com/sandrotanaka/devhub-github-azuredevops-demo/blob/main/templates/all-templates.yaml
   providers:
     azureDevOps:
       default:
