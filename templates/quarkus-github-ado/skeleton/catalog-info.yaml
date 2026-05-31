@@ -4,14 +4,11 @@ metadata:
   name: ${{ values.appName }}
   description: ${{ values.description }}
   annotations:
-    # Repositório GitHub
     github.com/project-slug: ${{ values.githubUser }}/${{ values.appName }}
-    # Credenciais ADO — host/org
     dev.azure.com/host-org: dev.azure.com/${{ values.adoOrg }}
-    # Projeto ADO
     dev.azure.com/project: ${{ values.adoProject }}
-    # Nome da pipeline criada pelo template: <adoOrg>.<appName>
     dev.azure.com/build-definition: ${{ values.adoOrg }}.${{ values.appName }}
+    dev.azure.com/project-repo: ${{ values.adoProject }}/${{ values.adoOrg }}.${{ values.appName }}
   tags:
     - quarkus
     - java
