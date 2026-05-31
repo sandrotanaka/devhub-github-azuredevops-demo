@@ -20,7 +20,7 @@ proxy:
       allowedMethods: [GET, POST, DELETE, PATCH]
       credentials: dangerously-allow-unauthenticated
       headers:
-        Authorization: "Basic OkFTNk1tZ0FVc29BYkVGV0JHeUkzREZNNHhaR203dngxUFRjUHJYdGV5R2Jjek1aOVFiRDBKUVFKOTlDRUFDQUFBQUFBQUFBQUFBQVNBWkRPM1AwYw=="
+        Authorization: "Basic ${AZURE_DEVOPS_PAT_BASE64}"
 catalog:
   rules:
     - allow:
@@ -35,9 +35,14 @@ catalog:
   locations:
     - type: url
       #target: https://raw.githubusercontent.com/${GITHUB_USER}/devhub-github-azuredevops-demo/main/templates/all-templates.yaml
+      #target: https://github.com/sandrotanaka/devhub-github-azuredevops-demo/blob/main/templates/all-templates.yaml
       target: https://github.com/sandrotanaka/devhub-github-azuredevops-demo/blob/main/templates/all-templates.yaml
+      rules:
+        - allow: [Template]
     - type: url
       target: https://github.com/sandrotanaka/devhub-github-azuredevops-demo/blob/main/catalog/users.yaml
+    - type: url
+      target: https://github.com/sandrotanaka/devhub-github-azuredevops-demo/blob/main/catalog/systems.yaml
   providers:
     azureDevOps:
       default:
