@@ -13,7 +13,7 @@ metadata:
     - url: https://github.com/${{ values.githubUser }}/${{ values.appName }}
       title: Repositório GitHub
       icon: github
-    - url: https://dev.azure.com/${{ values.adoOrg }}/${{ values.adoProject }}/_build?definitionName=${{ values.adoOrg }}.${{ values.appName }}
+    - url: "https://dev.azure.com/${{ values.adoOrg }}/${{ values.adoProject }}/_build"
       title: Azure Pipeline
       icon: dashboard
   tags:
@@ -23,4 +23,4 @@ spec:
   type: service
   lifecycle: development
   owner: user:${{ values.githubUser }}
-  system: ${{ values.adoProject
+  system: ${{ values.adoProject }}
