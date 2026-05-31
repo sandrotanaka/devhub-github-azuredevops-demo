@@ -1,23 +1,44 @@
 plugins:
   - disabled: false
     package: oci://ghcr.io/redhat-developer/rhdh-plugin-export-overlays/backstage-community-plugin-azure-devops:bs_1.45.3__0.23.0
-    # pluginConfig:
-    #   dynamicPlugins:
-    #     frontend:
-    #       backstage-community.plugin-azure-devops:
-    #         entityTabs:
-    #           - path: /azure-devops
-    #             title: Azure DevOps
-    #             mountPoint: entity.page.azure-devops
-    #         mountPoints:
-    #           - mountPoint: entity.page.azure-devops/cards
-    #             importName: EntityAzurePipelinesContent
-    #             config:
-    #               layout:
-    #                 gridColumn: 1 / -1
+    pluginConfig:
+      dynamicPlugins:
+        frontend:
+          backstage-community.plugin-azure-devops:
+            entityTabs:
+              - path: /ci
+                title: CI
+                mountPoint: entity.page.ci
+            mountPoints:
+              - mountPoint: entity.page.ci/cards
+                importName: EntityAzurePipelinesContent
+                config:
+                  layout:
+                    gridColumn: 1 / -1
   - disabled: false
     package: oci://ghcr.io/redhat-developer/rhdh-plugin-export-overlays/backstage-community-plugin-azure-devops-backend:bs_1.45.3__0.23.0
   - disabled: false
     package: ./dynamic-plugins/dist/backstage-plugin-scaffolder-backend-module-github-dynamic
   - disabled: false
     package: ./dynamic-plugins/dist/roadiehq-scaffolder-backend-module-http-request-dynamic
+  - disabled: false
+    package: oci://ghcr.io/redhat-developer/rhdh-plugin-export-overlays/roadiehq-backstage-plugin-github-pull-requests:bs_1.45.3__3.6.2
+    pluginConfig:
+      dynamicPlugins:
+        frontend:
+          roadiehq.backstage-plugin-github-pull-requests:
+            entityTabs:
+              - path: /pull-requests
+                title: Pull Requests
+                mountPoint: entity.page.pull-requests
+            mountPoints:
+              - mountPoint: entity.page.pull-requests/cards
+                importName: PullRequestsStatsCard
+                config:
+                  layout:
+                    gridColumn: 1 / -1
+              - mountPoint: entity.page.pull-requests/cards
+                importName: EntityGithubPullRequestsTable
+                config:
+                  layout:
+                    gridColumn: 1 / -1
