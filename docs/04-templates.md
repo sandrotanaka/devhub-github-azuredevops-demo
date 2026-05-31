@@ -6,56 +6,128 @@
 
 ```
 templates/
-├── all-templates.yaml                  ← ponto de entrada do catálogo
+├── all-templates.yaml
 └── quarkus-github-ado/
-    ├── template.yaml                   ← definição do template
+    ├── template.yaml
     └── skeleton/
-        ├── catalog-info.yaml           ← registrado no catálogo RHDH
-        ├── azure-pipelines.yml         ← pipeline ADO gerada com a app
-        └── src/                        ← app Quarkus mínima
+        ├── catalog-info.yaml
+        ├── azure-pipelines.yml
+        └── src/
 ```
 
 ---
 
 ## O que o template `quarkus-github-ado` faz
 
-1. **Cria um repositório GitHub** com o código da aplicação Quarkus e o `azure-pipelines.yml`
-2. **Cria uma pipeline no Azure DevOps** via API REST apontando para o repo GitHub
-3. **Dispara a primeira execução** da pipeline
-4. **Registra o componente no catálogo** do RHDH via `catalog-info.yaml`
+1. Gera o código da aplicação Quarkus via `fetch:template`
+2. Cria o repositório GitHub via `publish:github`
+3. Cria a pipeline no Azure DevOps via `http:backstage:request` (proxy `/azure-devops`)
+4. Dispara a primeira execução da pipeline
+5. Registra o componente no catálogo via `catalog:register`
 
 ---
 
-## Pré-condições para usar o template
+## Pré-condições
 
-- Service Connection GitHub configurada no ADO (ver `docs/03-azure-devops.md`)
-- `AZURE_GITHUB_SERVICE_CONNECTION_ID` preenchido no `.env`
-- PAT Base64 atualizado em `template.yaml` (campo `Authorization` dos steps `create-pipeline` e `run-pipeline`)
+- `AZURE_DEVOPS_PAT_BASE64` presente no Secret do cluster (ver `docs/01-prerequisites.md`)
+- `connectedServiceId` correto em `template.yaml` (ver `docs/03-azure-devops.md`)
+- Proxy `/azure-devops` configurado em `app-config.azure.yaml`
 
 ---
 
-## Atualizar o PAT Base64 no template
+## Como o proxy funciona
 
-O header `Authorization` nos steps do template **não expande variáveis de ambiente**. O valor precisa ser hardcoded:
+O `app-config.azure.yaml` configura um proxy autenticado para a API do Azure DevOps:
 
-```bash
-source .env
-echo -n ":${AZURE_DEVOPS_PAT}" | base64
+```yaml
+proxy:
+  endpoints:
+    /azure-devops:
+      target: https://dev.azure.com
+      changeOrigin: true
+      allowedMethods: [GET, POST, DELETE, PATCH]
+      credentials: dangerously-allow-unauthenticated
+      headers:
+        Authorization: "Basic ${AZURE_DEVOPS_PAT_BASE64}"
 ```
 
-Substitua `<BASE64_HARDCODED_DO_PAT>` no arquivo `templates/quarkus-github-ado/template.yaml`.
+O header `Authorization` é expandido a partir da variável de ambiente `AZURE_DEVOPS_PAT_BASE64` injetada pelo Secret.
+
+> ⚠️ **Variáveis `${...}` não são expandidas dentro dos steps do template** (`http:backstage:request`). A autenticação é feita pelo proxy, não pelo template diretamente. Não adicione header `Authorization` nos steps — o proxy já o injeta.
 
 ---
 
-## Apontando o catálogo para este repositório
+## Anotações do catalog-info.yaml
 
-O `app-config.azure.yaml` já está configurado para buscar templates neste repositório GitHub:
+O skeleton usa as seguintes anotações para que o plugin Azure DevOps funcione corretamente:
+
+```yaml
+annotations:
+  backstage.io/source-location: url:https://github.com/${{ values.githubUser }}/${{ values.appName }}
+  github.com/project-slug: ${{ values.githubUser }}/${{ values.appName }}
+  dev.azure.com/host-org: dev.azure.com/${{ values.adoOrg }}
+  dev.azure.com/project: ${{ values.adoProject }}
+  dev.azure.com/build-definition: ${{ values.adoOrg }}.${{ values.appName }}
+```
+
+> A anotação `dev.azure.com/build-definition` deve corresponder exatamente ao nome da pipeline criada no ADO. O nome é gerado no formato `<adoOrg>.<appName>`.
+
+---
+
+## Registrar templates no catálogo
+
+O `app-config.azure.yaml` já aponta para este repositório:
 
 ```yaml
 catalog:
   locations:
     - type: url
-      target: https://raw.githubusercontent.com/${GITHUB_USER}/devhub-github-azuredevops-demo/main/templates/all-templates.yaml
+      target: https://github.com/sandrotanaka/devhub-github-azuredevops-demo/blob/main/templates/all-templates.yaml
+      rules:
+        - allow: [Template]
 ```
 
-Após o `oc rollout restart`, o RHDH carrega automaticamente os templates desta URL.
+Após qualquer mudança no `app-config`, atualize o ConfigMap e reinicie:
+
+```bash
+oc create configmap ${RHDH_CONFIGMAP_APPCONFIG} \
+  --from-file=app-config.yaml=config/app-config.azure.yaml \
+  -n ${OCP_NAMESPACE} \
+  --dry-run=client -o yaml | oc apply -f -
+
+oc rollout restart deployment/backstage-developer-hub -n ${OCP_NAMESPACE}
+oc rollout status deployment/backstage-developer-hub -n ${OCP_NAMESPACE}
+```
+
+---
+
+## Troubleshooting de templates
+
+**Pipeline não criada no ADO:**
+
+Verifique se `AZURE_DEVOPS_PAT_BASE64` está no Secret:
+```bash
+oc exec deployment/backstage-developer-hub -n ${OCP_NAMESPACE} -- env | grep PAT_BASE64
+```
+
+Crie manualmente via curl como fallback (ver `docs/03-azure-devops.md`).
+
+**Aba Azure Pipelines - CI vazia:**
+
+Verifique se o nome da pipeline no ADO bate com a anotação `dev.azure.com/build-definition`:
+```bash
+curl -sk -u ":${AZURE_DEVOPS_PAT}" \
+  "https://dev.azure.com/${AZURE_DEVOPS_ORG}/${AZURE_DEVOPS_PROJECT}/_apis/build/definitions?api-version=7.1" \
+  | python3 -c "import sys,json; [print(p['name']) for p in json.load(sys.stdin).get('value',[])]"
+```
+
+**Error: Expected "dev.azure.com" annotations were not found:**
+
+O `catalog-info.yaml` do componente está faltando as anotações `dev.azure.com/*`. Edite diretamente no GitHub ou recrie o componente com o template corrigido.
+
+**Templates não aparecem em Create:**
+
+Verifique se o catalog processou a location:
+```bash
+oc logs deployment/backstage-developer-hub -n ${OCP_NAMESPACE} | grep -i "template\|location\|error"
+```

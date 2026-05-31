@@ -1,154 +1,191 @@
-# 02 — Instalação e configuração do RHDH
+# 02 — Configuração de instância existente
+
+Use este guia se o operador RHDH já está instalado e você quer configurar uma nova instância do zero.
 
 ---
 
-## Antes de começar — identifique os recursos no seu cluster
+## Identificar recursos no cluster
 
 ```bash
-# Localizar o namespace
-oc get deployment --all-namespaces | grep -i backstage
+# Verificar operador
+oc get csv --all-namespaces | grep rhdh
 
-# Listar recursos no namespace encontrado
-NAMESPACE=<seu-namespace>
-oc get configmap -n $NAMESPACE | grep -i developer-hub
-oc get secret -n $NAMESPACE | grep -i developer-hub
+# Listar namespaces com instâncias existentes
+oc get backstage --all-namespaces
 ```
 
-### Recursos descobertos no ambiente de referência (RHDH 1.9, instalação via Operador)
-
-| Recurso | Tipo | Nome |
-|---|---|---|
-| Namespace | — | `${OCP_NAMESPACE}` |
-| Deployment | Deployment | `backstage-developer-hub` |
-| app-config | ConfigMap | `${RHDH_CONFIGMAP_APPCONFIG}` |
-| dynamic-plugins | ConfigMap | `${RHDH_CONFIGMAP_PLUGINS}` |
-| Variáveis de ambiente | Secret | `${RHDH_SECRET}` |
-
-> O operador também cria `backstage-appconfig-developer-hub`, `backstage-dynamic-plugins-developer-hub` e `backstage-files-developer-hub`. **Não edite esses recursos** — são gerenciados internamente pelo operador. Use apenas os prefixados com o nome da sua instância (`${RHDH_SECRET/env/*}`).
-
 ---
 
-## Passo 1 — Secret com variáveis de ambiente
+## Passo 1 — Carregar variáveis
 
 ```bash
-# Gerar valores Base64
-B64_ORG=$(echo -n "${AZURE_DEVOPS_ORG}" | base64)
-B64_PROJECT=$(echo -n "${AZURE_DEVOPS_PROJECT}" | base64)
-B64_PAT=$(echo -n "${AZURE_DEVOPS_PAT}" | base64)
+set -a && source .env && set +a
 
-# Aplicar patch no secret
-oc patch secret ${RHDH_SECRET} -n ${OCP_NAMESPACE} \
-  --type='json' \
-  -p="[
-    {\"op\":\"add\",\"path\":\"/data/AZURE_DEVOPS_ORG\",     \"value\":\"${B64_ORG}\"},
-    {\"op\":\"add\",\"path\":\"/data/AZURE_DEVOPS_PROJECT\", \"value\":\"${B64_PROJECT}\"},
-    {\"op\":\"add\",\"path\":\"/data/AZURE_DEVOPS_PAT\",     \"value\":\"${B64_PAT}\"}
-  ]"
+echo "Namespace : ${OCP_NAMESPACE}"
+echo "Secret    : ${RHDH_SECRET}"
 ```
 
-> O PAT também precisa ser inserido em Base64 no formato `:PAT` nos headers hardcoded. Calcule e guarde o valor:
-> ```bash
-> echo -n ":${AZURE_DEVOPS_PAT}" | base64 | tr -d '\n'
-> ```
-> Substitua `<BASE64_HARDCODED_DO_PAT>` em `config/app-config.azure.yaml` e `templates/quarkus-github-ado/template.yaml`.
+---
+
+## Passo 2 — Criar o namespace
+
+```bash
+oc new-project ${OCP_NAMESPACE}
+```
 
 ---
 
-## Passo 2 — app-config
+## Passo 3 — Criar o Secret
 
-Adicionar a chave `app-config.azure.yaml` ao ConfigMap `${RHDH_CONFIGMAP_APPCONFIG}`:
+> ⚠️ Use `oc create secret generic` — faz o base64 automaticamente.
 
 ```bash
-# Calcular PAT Base64 para o proxy header
 PAT_BASE64=$(echo -n ":${AZURE_DEVOPS_PAT}" | base64 | tr -d '\n')
 
-# Ler o template e substituir o placeholder
-CONFIG_CONTENT=$(sed "s|<BASE64_HARDCODED_DO_PAT>|${PAT_BASE64}|g" config/app-config.azure.yaml)
-
-# Aplicar patch
-oc patch configmap ${RHDH_CONFIGMAP_APPCONFIG} -n ${OCP_NAMESPACE} \
-  --type=merge \
-  -p "{\"data\":{\"app-config.azure.yaml\":$(echo "${CONFIG_CONTENT}" | python3 -c 'import sys,json; print(json.dumps(sys.stdin.read()))')}}"
-```
-
-O arquivo `config/app-config.azure.yaml` configura:
-
-| Seção | Finalidade |
-|---|---|
-| `integrations.azure` | Autenticação para leitura de repositórios ADO |
-| `azureDevOps` | Plugin backend da aba CI |
-| `proxy.endpoints./azure-devops` | Proxy para chamadas à API ADO via templates |
-| `catalog.locations` | URL do `all-templates.yaml` neste repositório GitHub |
-| `catalog.providers.azureDevOps` | Discovery de `catalog-info.yaml` nos repos ADO |
-
-> ⚠️ Variáveis `${VAR}` **não são expandidas** dentro de `proxy.endpoints.headers`. O valor Base64 do PAT deve ser inserido literalmente nesse campo.
-
----
-
-## Passo 3 — Dynamic Plugins (RHDH 1.9)
-
-> ⚠️ **RHDH 1.9 — Breaking change:** Plugins Azure DevOps são community plugins migrados para OCI (`ghcr.io`). Paths locais `./dynamic-plugins/dist/backstage-plugin-azure-devops*` **não existem** nesta versão.
->
-> Referência: [Dynamic Plugins Reference 1.9](https://docs.redhat.com/en/documentation/red_hat_developer_hub/1.9/html-single/dynamic_plugins_reference/index)
-
-Adicionar os dois plugins Azure ao ConfigMap existente (preservando todos os outros plugins):
-
-```bash
-# Verificar plugins Azure já carregados
-oc get configmap ${RHDH_CONFIGMAP_PLUGINS} -n ${OCP_NAMESPACE} \
-  -o jsonpath='{.data.dynamic-plugins\.yaml}' | grep -i azure
-```
-
-Se não aparecerem, adicionar ao final do bloco `plugins:` via `oc patch`:
-
-```bash
-oc patch configmap ${RHDH_CONFIGMAP_PLUGINS} -n ${OCP_NAMESPACE} \
-  --type=merge \
-  -p '{"data":{"dynamic-plugins.yaml":"<CONTEUDO_COMPLETO_COM_PLUGINS_AZURE>"}}'
-```
-
-> O conteúdo completo deve preservar todos os plugins existentes. Veja o comando completo em `troubleshooting/errors.md`.
-
-Plugins Azure DevOps corretos para RHDH 1.9:
-
-```yaml
-- disabled: false
-  package: oci://ghcr.io/redhat-developer/rhdh-plugin-export-overlays/backstage-community-plugin-azure-devops:bs_1.45.3__0.23.0
-- disabled: false
-  package: oci://ghcr.io/redhat-developer/rhdh-plugin-export-overlays/backstage-community-plugin-azure-devops-backend:bs_1.45.3__0.23.0
-```
-
-Verificar instalação no log do init container:
-
-```bash
-oc logs -n ${OCP_NAMESPACE} deployment/backstage-developer-hub -c install-dynamic-plugins | grep -i azure
-```
-
-Resultado esperado:
-```
-======= Skipping download of already installed dynamic plugin ...backstage-community-plugin-azure-devops... (already_installed)
-======= Skipping download of already installed dynamic plugin ...backstage-community-plugin-azure-devops-backend... (already_installed)
+oc create secret generic ${RHDH_SECRET} \
+  --from-literal=AZURE_DEVOPS_ORG=${AZURE_DEVOPS_ORG} \
+  --from-literal=AZURE_DEVOPS_PROJECT=${AZURE_DEVOPS_PROJECT} \
+  --from-literal=AZURE_DEVOPS_PAT=${AZURE_DEVOPS_PAT} \
+  --from-literal=AZURE_DEVOPS_PAT_BASE64=${PAT_BASE64} \
+  --from-literal=GITHUB_TOKEN=${GITHUB_TOKEN} \
+  --from-literal=GITHUB_USER=${GITHUB_USER} \
+  --from-literal=GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID} \
+  --from-literal=GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET} \
+  -n ${OCP_NAMESPACE}
 ```
 
 ---
 
-## Passo 4 — Reiniciar o RHDH
+## Passo 4 — Criar os ConfigMaps
+
+```bash
+oc create configmap ${RHDH_CONFIGMAP_APPCONFIG} \
+  --from-file=app-config.yaml=config/app-config.azure.yaml \
+  -n ${OCP_NAMESPACE}
+
+oc create configmap ${RHDH_CONFIGMAP_PLUGINS} \
+  --from-file=dynamic-plugins.yaml=config/dynamic-plugins.yaml \
+  -n ${OCP_NAMESPACE}
+```
+
+Para atualizar um ConfigMap existente:
+
+```bash
+oc create configmap ${RHDH_CONFIGMAP_APPCONFIG} \
+  --from-file=app-config.yaml=config/app-config.azure.yaml \
+  -n ${OCP_NAMESPACE} \
+  --dry-run=client -o yaml | oc apply -f -
+```
+
+---
+
+## Passo 5 — Criar o CR Backstage
+
+> ⚠️ Use `<<YAML` sem aspas para expandir `${...}`.
+
+```bash
+oc apply -n ${OCP_NAMESPACE} -f - <<YAML
+apiVersion: rhdh.redhat.com/v1alpha3
+kind: Backstage
+metadata:
+  name: developer-hub
+  namespace: ${OCP_NAMESPACE}
+spec:
+  application:
+    appConfig:
+      configMaps:
+        - name: ${RHDH_CONFIGMAP_APPCONFIG}
+    dynamicPluginsConfigMapName: ${RHDH_CONFIGMAP_PLUGINS}
+    extraEnvs:
+      secrets:
+        - name: ${RHDH_SECRET}
+    replicas: 1
+    route:
+      enabled: true
+YAML
+```
+
+Verificar status:
+
+```bash
+oc get backstage developer-hub -n ${OCP_NAMESPACE} \
+  -o jsonpath='{.status.conditions[*].message}'
+```
+
+---
+
+## Passo 6 — Configurar GitHub OAuth App
+
+Obtenha a URL da Route:
+
+```bash
+oc get route -n ${OCP_NAMESPACE}
+```
+
+Crie o OAuth App em `https://github.com/settings/developers`:
+- **Authorization callback URL:** `https://<HOST>/api/auth/github/handler/frame`
+
+Atualize o Secret:
+
+```bash
+oc patch secret ${RHDH_SECRET} -n ${OCP_NAMESPACE} \
+  --type=merge \
+  -p "{\"stringData\": {
+    \"GITHUB_CLIENT_ID\": \"${GITHUB_CLIENT_ID}\",
+    \"GITHUB_CLIENT_SECRET\": \"${GITHUB_CLIENT_SECRET}\"
+  }}"
+```
+
+---
+
+## Passo 7 — Reiniciar e verificar
 
 ```bash
 oc rollout restart deployment/backstage-developer-hub -n ${OCP_NAMESPACE}
 oc rollout status deployment/backstage-developer-hub -n ${OCP_NAMESPACE}
 ```
 
-Verificar plugins carregados no log do backend:
+Verificar variáveis disponíveis no pod:
 
 ```bash
-oc logs -n ${OCP_NAMESPACE} deployment/backstage-developer-hub -c backstage-backend | grep -i azure
+oc exec deployment/backstage-developer-hub -n ${OCP_NAMESPACE} -- env | grep -E "AZURE|GITHUB"
 ```
 
-Resultado esperado:
+Verificar plugins Azure carregados:
+
+```bash
+oc logs deployment/backstage-developer-hub -n ${OCP_NAMESPACE} \
+  -c backstage-backend | grep -i azure
 ```
-backstage info loaded dynamic backend plugin '@backstage-community/plugin-azure-devops-backend-dynamic'
-proxy info [HPM] Proxy created: /azure-devops  -> https://dev.azure.com
-scalprum info Loaded dynamic frontend plugin '@backstage-community/plugin-azure-devops-dynamic'
-backstage info Plugin initialization in progress, newly initialized: ... 'azure-devops' ...
+
+---
+
+## Recursos criados pelo operador
+
+O operador cria automaticamente os seguintes recursos adicionais — **não edite**:
+
+| Recurso | Nome |
+|---|---|
+| ConfigMap | `backstage-appconfig-developer-hub` |
+| ConfigMap | `backstage-dynamic-plugins-developer-hub` |
+| ConfigMap | `backstage-files-developer-hub` |
+| Secret | `backstage-psql-secret-developer-hub` |
+
+---
+
+## Troubleshooting
+
+**Secret not found:**
 ```
+failed to get external config from <RHDH_SECRET>: Secret "<RHDH_SECRET>" not found
+```
+→ O Secret foi criado em namespace diferente do CR. Verifique `${OCP_NAMESPACE}`.
+
+**auth provider missing clientId:**
+```
+Missing required config value at 'auth.providers.github.production.clientId'
+```
+→ `GITHUB_CLIENT_ID` não está no Secret ou OAuth App não foi criado.
+
+**Proxy retorna 401 ao criar pipeline:**
+→ `AZURE_DEVOPS_PAT_BASE64` não está no Secret. Veja Passo 3.
