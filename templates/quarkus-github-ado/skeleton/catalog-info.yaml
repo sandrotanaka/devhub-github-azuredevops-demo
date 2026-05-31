@@ -4,22 +4,15 @@ metadata:
   name: ${{ values.appName }}
   description: ${{ values.description }}
   annotations:
-    backstage.io/source-location: url:https://github.com/${{ values.githubUser }}/${{ values.appName }}
-    github.com/project-slug: ${{ values.githubUser }}/${{ values.appName }}
-    dev.azure.com/project-repo: ${{ values.adoProject }}/${{ values.adoOrg }}.${{ values.appName }}
+    #github.com/project-slug: ${{ values.githubUser }}/${{ values.appName }}
+    dev.azure.com/host-org: dev.azure.com/${{ values.adoOrg }}
+    dev.azure.com/project: ${{ values.adoProject }}
     dev.azure.com/build-definition: ${{ values.adoOrg }}.${{ values.appName }}
-  links:
-    - url: https://github.com/${{ values.githubUser }}/${{ values.appName }}
-      title: Repositório GitHub
-      icon: github
-    - url: "https://dev.azure.com/${{ values.adoOrg }}/${{ values.adoProject }}/_build"
-      title: Azure Pipeline
-      icon: dashboard
+    dev.azure.com/project-repo: ${{ values.adoProject }}/${{ values.adoOrg }}.${{ values.appName }}
   tags:
     - quarkus
     - java
 spec:
   type: service
   lifecycle: development
-  owner: user:${{ values.githubUser }}
-  system: ${{ values.adoProject }}
+  owner: user:guest
