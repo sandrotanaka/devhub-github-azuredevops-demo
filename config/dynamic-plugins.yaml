@@ -1,6 +1,25 @@
 plugins:
   - disabled: false
     package: oci://ghcr.io/redhat-developer/rhdh-plugin-export-overlays/backstage-community-plugin-azure-devops:bs_1.45.3__0.23.0
+    pluginConfig:
+      dynamicPlugins:
+        frontend:
+          backstage-community.plugin-azure-devops:
+            entityTabs:
+              - path: /azure-devops
+                title: Azure DevOps
+                mountPoint: entity.page.azure-devops
+            mountPoints:
+              - mountPoint: entity.page.azure-devops/cards
+                importName: EntityAzureGitTagsContent
+                config:
+                  layout:
+                    gridColumn: 1 / -1
+              - mountPoint: entity.page.azure-devops/cards
+                importName: EntityAzurePipelinesContent
+                config:
+                  layout:
+                    gridColumn: 1 / -1
   - disabled: false
     package: oci://ghcr.io/redhat-developer/rhdh-plugin-export-overlays/backstage-community-plugin-azure-devops-backend:bs_1.45.3__0.23.0
   - disabled: false
