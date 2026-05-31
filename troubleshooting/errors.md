@@ -1,87 +1,82 @@
-# Troubleshooting — Erros comuns
+# Troubleshooting — Erros encontrados e soluções
 
----
+## 1. Plugin Azure DevOps — npm error ENOENT package.json
 
-## Tabela de erros
+**Sintoma:** InstallException ao instalar plugin Azure DevOps
+**Causa:** No RHDH 1.9 os plugins Azure DevOps foram migrados para OCI.
+**Solução:** Usar referência OCI no dynamic-plugins.yaml:
 
-| Erro | Causa | Solução |
-|---|---|---|
-| `No pool was specified` | `azure-pipelines.yml` sem bloco `pool` | Adicionar `pool: vmImage: 'ubuntu-latest'` |
-| `401 Unauthorized` no proxy | Base64 do PAT incorreto ou variável não expandida | Usar valor Base64 hardcoded: `echo -n ":<PAT>" \| base64 \| tr -d '\n'` |
-| Pipeline não aparece na aba CI | Anotações erradas no `catalog-info.yaml` | Usar `dev.azure.com/project` + `dev.azure.com/build-definition: adoOrg.appName` |
-| `No repository found` na aba CI | Uso de `project-repo` para repo no GitHub | Remover `project-repo`; usar só `project` + `build-definition` |
-| Template não aparece no RHDH | `all-templates.yaml` não carregado ou URL errada | Verificar location no app-config e forçar refresh no catálogo |
-| `connectedServiceId` inválido | ID de outro projeto ou ambiente | Buscar via API (ver seção abaixo) |
-| `npm error ENOENT package.json` no init container | Path `./dynamic-plugins/dist/backstage-plugin-azure-devops*` não existe no RHDH 1.9 | Usar paths OCI `ghcr.io` (ver Passo 3 em `docs/02-rhdh-install.md`) |
+plugins:
+  - disabled: false
+    package: oci://ghcr.io/redhat-developer/rhdh-plugin-export-overlays/backstage-community-plugin-azure-devops:bs_1.45.3__0.23.0
+  - disabled: false
+    package: oci://ghcr.io/redhat-developer/rhdh-plugin-export-overlays/backstage-community-plugin-azure-devops-backend:bs_1.45.3__0.23.0
 
----
+## 2. Catalog — NotAllowedError raw.githubusercontent.com
 
-## RHDH 1.9 — Plugins Azure DevOps via OCI
+**Sintoma:** catalog warn Unable to read url, NotAllowedError
+**Causa:** RHDH bloqueia leitura de hosts externos por padrão.
+**Solução:** Adicionar ao app-config.yaml:
 
-No RHDH 1.9, os plugins Azure DevOps são community plugins distribuídos via OCI no `ghcr.io`.
-Paths locais `./dynamic-plugins/dist/backstage-plugin-azure-devops*` **não existem** nesta versão.
+backend:
+  reading:
+    allow:
+      - host: raw.githubusercontent.com
+      - host: dev.azure.com
 
-Paths corretos validados:
+## 3. Scaffolder — No integration found for location raw.githubusercontent.com
 
-```yaml
-- disabled: false
-  package: oci://ghcr.io/redhat-developer/rhdh-plugin-export-overlays/backstage-community-plugin-azure-devops:bs_1.45.3__0.23.0
-- disabled: false
-  package: oci://ghcr.io/redhat-developer/rhdh-plugin-export-overlays/backstage-community-plugin-azure-devops-backend:bs_1.45.3__0.23.0
-```
+**Sintoma:** InputError: No integration found for location https://raw.githubusercontent.com/...
+**Causa:** catalog location usando raw.githubusercontent.com — scaffolder nao mapeia para integracao GitHub.
+**Solução:** Usar URL github.com/blob/ no catalog location:
 
----
+catalog:
+  locations:
+    - type: url
+      target: https://github.com/sandrotanaka/devhub-github-azuredevops-demo/blob/main/templates/all-templates.yaml
 
-## Obter ID da Service Connection GitHub
+## 4. Scaffolder — publish:github not registered
 
-```bash
-curl -sk -u ":${AZURE_DEVOPS_PAT}" \
-  "https://dev.azure.com/${AZURE_DEVOPS_ORG}/${AZURE_DEVOPS_PROJECT}/_apis/serviceendpoint/endpoints?type=GitHub&api-version=7.1" \
-  | python3 -c "
-import sys, json
-data = json.load(sys.stdin)
-for c in data.get('value', []):
-    print(f'ID:   {c[\"id\"]}')
-    print(f'Nome: {c[\"name\"]}')
-    print()
-"
-```
+**Sintoma:** NotFoundError: Template action with ID publish:github is not registered.
+**Causa:** Plugin scaffolder-backend-module-github nao habilitado.
+**Solução:** Adicionar ao dynamic-plugins.yaml:
 
----
+  - disabled: false
+    package: ./dynamic-plugins/dist/backstage-plugin-scaffolder-backend-module-github-dynamic
 
-## Verificar plugins carregados
+## 5. Scaffolder — http:backstage:request not registered
 
-```bash
-# Init container — instalação dos plugins
-oc logs -n ${OCP_NAMESPACE} deployment/backstage-developer-hub -c install-dynamic-plugins | grep -i azure
+**Sintoma:** NotFoundError: Template action with ID http:backstage:request is not registered.
+**Causa:** Plugin roadiehq-scaffolder-backend-module-http-request nao habilitado.
+**Solução:** Adicionar ao dynamic-plugins.yaml:
 
-# Backend — plugins inicializados
-oc logs -n ${OCP_NAMESPACE} deployment/backstage-developer-hub -c backstage-backend | grep -i azure
-```
+  - disabled: false
+    package: ./dynamic-plugins/dist/roadiehq-scaffolder-backend-module-http-request-dynamic
 
----
+## 6. Azure DevOps — Unrecognized value: values no pipeline
 
-## Verificar variáveis expandidas no pod
+**Sintoma:** Unrecognized value: values. Located at position 41 within expression
+**Causa:** Sintaxe de escape Nunjucks sendo mal interpretada pelo Azure Pipelines.
+**Solução:** Usar sintaxe direta no skeleton azure-pipelines.yml:
 
-```bash
-oc exec -n ${OCP_NAMESPACE} deployment/backstage-developer-hub \
-  -c backstage-backend -- env | grep AZURE
-```
+steps:
+  - script: echo "Build da aplicacao ${{ values.appName }}"
+    displayName: 'Build ${{ values.appName }}'
 
----
+## 7. Git push bloqueado — GitHub Push Protection
 
-## Forçar refresh do catálogo
+**Sintoma:** Push cannot contain secrets — GitHub Personal Access Token
+**Causa:** Token GitHub hardcoded no app-config.azure.yaml para debug.
+**Solução:**
+1. Reverter para token: ${GITHUB_TOKEN} no app-config
+2. git commit --amend --no-edit
+3. git push --force
+4. No cluster usar variavel de ambiente via Secret
 
-No RHDH, acesse:
-```
-Settings → Catalog → Locations → <location> → Refresh
-```
+## 8. Variaveis de ambiente sobrescrevendo .env
 
-Ou via API (requer token de sessão do RHDH):
-
-```bash
-RHDH_HOST=$(oc get route -n ${OCP_NAMESPACE} -o jsonpath='{.items[0].spec.host}')
-curl -sk -X POST "https://${RHDH_HOST}/api/catalog/locations/refresh" \
-  -H "Content-Type: application/json" \
-  -d "{\"type\":\"url\",\"target\":\"https://raw.githubusercontent.com/${GITHUB_USER}/devhub-github-azuredevops-demo/main/templates/all-templates.yaml\"}"
-```
+**Sintoma:** source .env nao atualiza variaveis — valores antigos persistem.
+**Causa:** Variaveis exportadas na sessao do shell tem precedencia.
+**Solução:**
+unset RHDH_SECRET OCP_NAMESPACE AZURE_DEVOPS_PAT GITHUB_TOKEN
+set -a && source .env && set +a
