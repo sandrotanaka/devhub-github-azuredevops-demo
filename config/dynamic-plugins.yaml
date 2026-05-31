@@ -13,7 +13,7 @@ plugins:
           backstage-community.plugin-azure-devops:
             entityTabs:
               - path: /ci
-                title: CI
+                title: Azure Pipelines - CI
                 mountPoint: entity.page.ci
             mountPoints:
               - mountPoint: entity.page.ci/cards
@@ -37,7 +37,7 @@ plugins:
           roadiehq.backstage-plugin-github-pull-requests:
             entityTabs:
               - path: /pull-requests
-                title: Pull Requests
+                title: GitHub - Pull Requests
                 mountPoint: entity.page.pull-requests
             mountPoints:
               - mountPoint: entity.page.pull-requests/cards
